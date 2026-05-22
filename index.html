@@ -101,7 +101,7 @@ html, body {
   position: relative;
   overflow: hidden;
 }
-.btn:active { transform: scale(0.94); }
+.btn:active { -webkit-transform: scale(0.94); transform: scale(0.94); }
 .btn.on { color: #fff; }
 .btn svg {
   width: 28px; height: 28px;
@@ -131,13 +131,16 @@ html, body {
   position: absolute;
   border-radius: 50%;
   background: rgba(255,255,255,0.15);
+  -webkit-transform: scale(0);
   transform: scale(0);
+  -webkit-animation: ripple-anim 0.4s linear;
   animation: ripple-anim 0.4s linear;
   pointer-events: none;
 }
+@-webkit-keyframes ripple-anim { to { -webkit-transform: scale(4); opacity: 0; } }
 @keyframes ripple-anim { to { transform: scale(4); opacity: 0; } }
 
-body.portrait #grid   { grid-template-columns: repeat(2, 1fr); }
+body.portrait #grid   { grid-template-columns: repeat(3, 1fr); }
 body.portrait .btn    { max-height: 120px; }
 body.portrait #time   { font-size: 52px; }
 body.portrait #ov-time { font-size: 36px; }
@@ -165,6 +168,53 @@ body.portrait #ov-time { font-size: 36px; }
 
 <script>
 "use strict";
+
+// fetch polyfill for old WebView
+if (!window.fetch) {
+  window.fetch = function(url, opts) {
+    return new Promise(function(resolve, reject) {
+      var xhr = new XMLHttpRequest();
+      var method = (opts && opts.method) || 'GET';
+      xhr.open(method, url, true);
+      xhr.onload = function() {
+        var res = {
+          ok: xhr.status >= 200 && xhr.status < 300,
+          status: xhr.status,
+          json: function() { return Promise.resolve(JSON.parse(xhr.responseText)); }
+        };
+        resolve(res);
+      };
+      xhr.onerror = function() { reject(new Error('Network error')); };
+      xhr.send((opts && opts.body) || null);
+    });
+  };
+}
+
+// Promise polyfill guard — if no Promise, stub it out so app at least doesn't throw
+if (!window.Promise) {
+  window.Promise = function(fn) {
+    var _resolve, _reject, _val, _err, _done = false, _fail = false;
+    var _thens = [], _catches = [];
+    function resolve(v) { _val = v; _done = true; _thens.forEach(function(f){ try{f(v);}catch(e){} }); }
+    function reject(e)  { _err = e; _fail = true; _catches.forEach(function(f){ try{f(e);}catch(e){} }); }
+    try { fn(resolve, reject); } catch(e) { reject(e); }
+    return {
+      then: function(f, r) {
+        if (_done) { try { f(_val); } catch(e) {} }
+        else if (_fail) { if(r) { try{r(_err);}catch(e){} } }
+        else { _thens.push(f); if(r) _catches.push(r); }
+        return this;
+      },
+      'catch': function(f) {
+        if (_fail) { try{f(_err);}catch(e){} }
+        else { _catches.push(f); }
+        return this;
+      }
+    };
+  };
+  Promise.resolve = function(v) { return new Promise(function(r){ r(v); }); };
+}
+
 var ICONS = {
   lightbulb: '<svg viewBox="0 0 24 24"><path d="M9 21h6v-1H9zm0-2h6v-1H9zm7.3-8.7C17.4 9.5 18 8.3 18 7A6 6 0 0 0 6 7c0 1.3.6 2.5 1.7 3.3L9 12.4V16h6v-3.6z"/></svg>',
   fan:       '<svg viewBox="0 0 24 24"><path d="M12 11a1 1 0 1 1 0 2 1 1 0 0 1 0-2zm0-9c-1.66 0-3 1.34-3 3 0 1.5.88 2.82 2.16 3.42L11 9h2v-.56A3.5 3.5 0 0 0 15 5c0-1.66-1.34-3-3-3zm6.36 5.64A3 3 0 0 0 15 12c0 .35.07.69.18 1l.46.8-1 1.73-.46-.8A3.45 3.45 0 0 0 12 15.5a3 3 0 0 0 0 6c1.5 0 2.82-.88 3.42-2.16L15 19v-2h-.56A3.5 3.5 0 0 0 18 19c1.66 0 3-1.34 3-3a3 3 0 0 0-2.64-2.97zM5.64 5.64A3 3 0 0 0 3 8.5c0 1.66 1.34 3 3 3 .35 0 .69-.07 1-.18l.8-.46 1.73 1-.8.46A3.45 3.45 0 0 0 9 15.5a3 3 0 1 0 0-6c-.35 0-.69.07-1 .18L8.5 10V8h.56A3.5 3.5 0 0 0 6 8a3 3 0 0 0-.36-2.36z"/></svg>',
@@ -329,7 +379,7 @@ function makeBtn(id, iconSvg, label) {
 function applyColor(btn, cfg, on) {
   btn.style.background = on ? (cfg.color_on || '#2a2a2a') : (cfg.color_off || '#1c1c1e');
   btn.style.color = on ? '#fff' : '#666';
-  btn.classList.toggle('on', on);
+  if (on) { btn.classList.add('on'); } else { btn.classList.remove('on'); }
 }
 
 function fireBtn(btn, cfg) {
@@ -355,9 +405,9 @@ function ripple(btn, e) {
     'left:'  + (cx - r.left - r.width / 2) + 'px;' +
     'top:'   + (cy - r.top  - r.width / 2) + 'px';
   btn.appendChild(rip);
-  rip.addEventListener('animationend', function() {
-    if (rip.parentNode) { rip.parentNode.removeChild(rip); }
-  });
+  function removeRipple() { if (rip.parentNode) { rip.parentNode.removeChild(rip); } }
+  rip.addEventListener('animationend', removeRipple);
+  rip.addEventListener('webkitAnimationEnd', removeRipple);
 }
 
 function post(url) {
@@ -389,11 +439,12 @@ function onPtrEnd(x, y) {
 
 // ── init ───────────────────────────────────────────────────────────
 function checkOrientation() {
-  if (window.innerHeight > window.innerWidth || screen.height > screen.width) {
-    document.body.classList.add('portrait');
-  } else {
-    document.body.classList.remove('portrait');
-  }
+  var mq = window.matchMedia && window.matchMedia('(orientation: portrait)');
+  var isPortrait = (mq ? mq.matches : false)
+    || window.innerHeight > window.innerWidth
+    || screen.height > screen.width;
+  if (isPortrait) { document.body.classList.add('portrait'); }
+  else            { document.body.classList.remove('portrait'); }
 }
 
 function init() {
