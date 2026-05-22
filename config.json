@@ -1,0 +1,64 @@
+{
+  "buttons": [
+    {
+      "id": "luz_sala",
+      "label": "Luz Sala",
+      "icon": "lightbulb",
+      "webhook_on":  "http://192.168.0.X:8123/api/webhook/luz_sala_on",
+      "webhook_off": "http://192.168.0.X:8123/api/webhook/luz_sala_off",
+      "color_on":  "#f59e0b",
+      "color_off": "#1c1c1e",
+      "is_toggle": true
+    },
+    {
+      "id": "luz_cocina",
+      "label": "Luz Cocina",
+      "icon": "lightbulb",
+      "webhook_on":  "http://192.168.0.X:8123/api/webhook/luz_cocina_on",
+      "webhook_off": "http://192.168.0.X:8123/api/webhook/luz_cocina_off",
+      "color_on":  "#fde68a",
+      "color_off": "#1c1c1e",
+      "is_toggle": true
+    },
+    {
+      "id": "ventilador",
+      "label": "Ventilador",
+      "icon": "fan",
+      "webhook_on":  "http://192.168.0.X:8123/api/webhook/ventilador_on",
+      "webhook_off": "http://192.168.0.X:8123/api/webhook/ventilador_off",
+      "color_on":  "#3b82f6",
+      "color_off": "#1c1c1e",
+      "is_toggle": true
+    },
+    {
+      "id": "tv_sala",
+      "label": "TV Sala",
+      "icon": "tv",
+      "webhook_on":  "http://192.168.0.X:8123/api/webhook/tv_on",
+      "webhook_off": "http://192.168.0.X:8123/api/webhook/tv_off",
+      "color_on":  "#8b5cf6",
+      "color_off": "#1c1c1e",
+      "is_toggle": true
+    },
+    {
+      "id": "puerta",
+      "label": "Puerta",
+      "icon": "lock",
+      "webhook_on":  "http://192.168.0.X:8123/api/webhook/puerta_abrir",
+      "webhook_off": "http://192.168.0.X:8123/api/webhook/puerta_cerrar",
+      "color_on":  "#10b981",
+      "color_off": "#1c1c1e",
+      "is_toggle": true
+    },
+    {
+      "id": "enchufe",
+      "label": "Enchufe",
+      "icon": "plug",
+      "webhook_on":  "http://192.168.0.X:8123/api/webhook/enchufe_on",
+      "webhook_off": "http://192.168.0.X:8123/api/webhook/enchufe_off",
+      "color_on":  "#f97316",
+      "color_off": "#1c1c1e",
+      "is_toggle": true
+    }
+  ]
+}

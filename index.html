@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1024, height=600, user-scalable=no">
+<title>Frame</title>
+<style>
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+html, body {
+  width: 100%; height: 100%;
+  background: #000;
+  font-family: system-ui, -apple-system, sans-serif;
+  overflow: hidden;
+  touch-action: manipulation;
+}
+
+/* ── SLIDESHOW ─────────────────────────────────────────────── */
+#ss {
+  position: fixed; top: 0; right: 0; bottom: 0; left: 0;
+  background: #000;
+}
+.slide {
+  position: absolute; top: 0; right: 0; bottom: 0; left: 0;
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center center;
+  opacity: 0;
+  -webkit-transition: opacity 1.2s ease-in-out;
+  transition: opacity 1.2s ease-in-out;
+  will-change: opacity;
+}
+.slide.on { opacity: 1; }
+
+/* ── OVERLAY (slideshow) ───────────────────────────────────── */
+#ov {
+  position: fixed;
+  top: 20px; right: 24px;
+  text-align: right;
+  color: #fff;
+  text-shadow: 0 1px 6px rgba(0,0,0,0.9), 0 0 2px rgba(0,0,0,0.6);
+  z-index: 10;
+  pointer-events: none;
+  line-height: 1.15;
+}
+#ov-date    { font-size: 15px; opacity: 0.85; letter-spacing: 0.3px; }
+#ov-time    { font-size: 52px; font-weight: 200; letter-spacing: -2px; font-variant-numeric: tabular-nums; }
+#ov-weather { font-size: 14px; opacity: 0.8; margin-top: 2px; }
+
+/* ── DASHBOARD ─────────────────────────────────────────────── */
+#db {
+  position: fixed; top: 0; right: 0; bottom: 0; left: 0;
+  background: #0a0a0a;
+  display: none;
+  flex-direction: column;
+  padding: 14px 20px 12px;
+  gap: 10px;
+}
+#db.show { display: flex; }
+
+#clk { text-align: center; padding: 2px 0 4px; }
+#time {
+  font-size: 76px;
+  font-weight: 200;
+  color: #fff;
+  letter-spacing: -3px;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+#dateline {
+  font-size: 15px;
+  color: #555;
+  margin-top: 4px;
+  letter-spacing: 0.3px;
+}
+
+#grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  flex: 1;
+  min-height: 0;
+}
+
+.btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 80px;
+  border: none;
+  border-radius: 14px;
+  background: #1c1c1e;
+  color: #666;
+  font-size: 12px;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.25s, color 0.2s, transform 0.1s;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  position: relative;
+  overflow: hidden;
+}
+.btn:active { transform: scale(0.94); }
+.btn.on { color: #fff; }
+.btn svg {
+  width: 28px; height: 28px;
+  fill: currentColor;
+  flex-shrink: 0;
+  pointer-events: none;
+}
+.btn-lbl {
+  font-size: 12px;
+  line-height: 1.3;
+  text-align: center;
+  pointer-events: none;
+}
+
+#btn-photos {
+  grid-column: 1 / -1;
+  min-height: 44px;
+  flex-direction: row;
+  gap: 10px;
+  font-size: 14px;
+  background: #111827;
+  color: #6366f1;
+}
+#btn-photos svg { width: 20px; height: 20px; }
+
+.ripple {
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.15);
+  transform: scale(0);
+  animation: ripple-anim 0.4s linear;
+  pointer-events: none;
+}
+@keyframes ripple-anim { to { transform: scale(4); opacity: 0; } }
+
+body.portrait #grid   { grid-template-columns: repeat(2, 1fr); }
+body.portrait .btn    { max-height: 120px; }
+body.portrait #time   { font-size: 52px; }
+body.portrait #ov-time { font-size: 36px; }
+</style>
+</head>
+<body>
+
+<div id="ss">
+  <div class="slide" id="sA"></div>
+  <div class="slide" id="sB"></div>
+  <div id="ov">
+    <div id="ov-date"></div>
+    <div id="ov-time"></div>
+    <div id="ov-weather"></div>
+  </div>
+</div>
+
+<div id="db">
+  <div id="clk">
+    <div id="time">00:00</div>
+    <div id="dateline">Lunes, 1 enero</div>
+  </div>
+  <div id="grid"></div>
+</div>
+
+<script>
+"use strict";
+var ICONS = {
+  lightbulb: '<svg viewBox="0 0 24 24"><path d="M9 21h6v-1H9zm0-2h6v-1H9zm7.3-8.7C17.4 9.5 18 8.3 18 7A6 6 0 0 0 6 7c0 1.3.6 2.5 1.7 3.3L9 12.4V16h6v-3.6z"/></svg>',
+  fan:       '<svg viewBox="0 0 24 24"><path d="M12 11a1 1 0 1 1 0 2 1 1 0 0 1 0-2zm0-9c-1.66 0-3 1.34-3 3 0 1.5.88 2.82 2.16 3.42L11 9h2v-.56A3.5 3.5 0 0 0 15 5c0-1.66-1.34-3-3-3zm6.36 5.64A3 3 0 0 0 15 12c0 .35.07.69.18 1l.46.8-1 1.73-.46-.8A3.45 3.45 0 0 0 12 15.5a3 3 0 0 0 0 6c1.5 0 2.82-.88 3.42-2.16L15 19v-2h-.56A3.5 3.5 0 0 0 18 19c1.66 0 3-1.34 3-3a3 3 0 0 0-2.64-2.97zM5.64 5.64A3 3 0 0 0 3 8.5c0 1.66 1.34 3 3 3 .35 0 .69-.07 1-.18l.8-.46 1.73 1-.8.46A3.45 3.45 0 0 0 9 15.5a3 3 0 1 0 0-6c-.35 0-.69.07-1 .18L8.5 10V8h.56A3.5 3.5 0 0 0 6 8a3 3 0 0 0-.36-2.36z"/></svg>',
+  tv:        '<svg viewBox="0 0 24 24"><path d="M21 3H3a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h5l-1 1v1h10v-1l-1-1h5a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2zm0 14H3V5h18v12z"/></svg>',
+  lock:      '<svg viewBox="0 0 24 24"><path d="M18 8h-1V6A5 5 0 0 0 7 6v2H6a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V10a2 2 0 0 0-2-2zM9 6a3 3 0 0 1 6 0v2H9V6zm3 11a2 2 0 1 1 0-4 2 2 0 0 1 0 4z"/></svg>',
+  plug:      '<svg viewBox="0 0 24 24"><path d="M16 7V3h-2v4H10V3H8v4a4 4 0 0 0 3 3.87V19H9v2h6v-2h-2v-8.13A4 4 0 0 0 16 7z"/></svg>',
+  music:     '<svg viewBox="0 0 24 24"><path d="M12 3v10.55A4 4 0 1 0 14 17V7h4V3h-6z"/></svg>',
+  thermo:    '<svg viewBox="0 0 24 24"><path d="M15 13V5a3 3 0 0 0-6 0v8a5 5 0 1 0 6 0zm-3 7a3 3 0 1 1 0-6 3 3 0 0 1 0 6z"/></svg>',
+  camera:    '<svg viewBox="0 0 24 24"><path d="M20 5h-3.2L15 3H9L7.2 5H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2zm-8 13a5 5 0 1 1 0-10 5 5 0 0 1 0 10zm0-8a3 3 0 1 0 0 6 3 3 0 0 0 0-6z"/></svg>',
+  switch:    '<svg viewBox="0 0 24 24"><path d="M17 7H7a5 5 0 0 0 0 10h10A5 5 0 0 0 17 7zm0 8a3 3 0 1 1 0-6 3 3 0 0 1 0 6z"/></svg>',
+  photos:    '<svg viewBox="0 0 24 24"><path d="M21 3H3a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h18a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2zm0 16H3V5h18v14zm-8-7-3 3.7-2-2.4L5 17h14z"/></svg>',
+};
+
+// ── state ──────────────────────────────────────────────────────────
+var photos = [], photoIdx = 0, curSlide = 'A';
+var mode = 'slideshow';
+var slideTimer = null, inactiveTimer = null;
+var preloader = null, loadingImg = null;
+var btnStates = {};
+var ptrStartX = 0, ptrStartY = 0;
+
+var ssEl   = document.getElementById('ss');
+var dbEl   = document.getElementById('db');
+var sA     = document.getElementById('sA');
+var sB     = document.getElementById('sB');
+var timeEl = document.getElementById('time');
+var dateEl = document.getElementById('dateline');
+var gridEl = document.getElementById('grid');
+var ovDate = document.getElementById('ov-date');
+var ovTime = document.getElementById('ov-time');
+var ovWx   = document.getElementById('ov-weather');
+
+// ── utilities ──────────────────────────────────────────────────────
+function clearTimers() {
+  clearInterval(slideTimer);   slideTimer = null;
+  clearTimeout(inactiveTimer); inactiveTimer = null;
+}
+
+function preload(url) {
+  if (!preloader) { preloader = new Image(); }
+  preloader.src = url;
+}
+
+function shuffle(arr) {
+  var i, j, tmp;
+  for (i = arr.length - 1; i > 0; i--) {
+    j = Math.floor(Math.random() * (i + 1));
+    tmp = arr[i]; arr[i] = arr[j]; arr[j] = tmp;
+  }
+  return arr;
+}
+
+function pad2(n) { return n < 10 ? '0' + n : '' + n; }
+
+// ── slideshow ──────────────────────────────────────────────────────
+function startSlideshow() {
+  mode = 'slideshow';
+  dbEl.classList.remove('show');
+  ssEl.style.display = '';
+  if (!photos.length) { return; }
+  showPhoto(photoIdx);
+  slideTimer = setInterval(function() {
+    photoIdx = (photoIdx + 1) % photos.length;
+    showPhoto(photoIdx);
+  }, 60000);
+}
+
+function showPhoto(idx) {
+  var url = '/slideshow/' + photos[idx];
+  console.log('showPhoto idx=' + idx + ' url=' + url);
+  if (loadingImg) { loadingImg.onload = null; loadingImg.onerror = null; }
+  loadingImg = new Image();
+  loadingImg.onload = function() {
+    console.log('onload fired url=' + url);
+    var next = curSlide === 'A' ? sA : sB;
+    var prev = curSlide === 'A' ? sB : sA;
+    next.style.backgroundImage = "url('" + url + "')";
+    next.classList.add('on');
+    prev.classList.remove('on');
+    curSlide = curSlide === 'A' ? 'B' : 'A';
+    loadingImg = null;
+    preload('/slideshow/' + photos[(idx + 1) % photos.length]);
+  };
+  loadingImg.onerror = function() { console.log('onerror url=' + url); loadingImg = null; };
+  loadingImg.src = url;
+}
+
+// ── clock ──────────────────────────────────────────────────────────
+var DAYS   = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+var MONTHS = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto',
+              'septiembre','octubre','noviembre','diciembre'];
+
+function updateClock() {
+  var d  = new Date();
+  var hm = pad2(d.getHours()) + ':' + pad2(d.getMinutes());
+  var dt = DAYS[d.getDay()] + ', ' + d.getDate() + ' de ' + MONTHS[d.getMonth()];
+  timeEl.textContent = hm;
+  dateEl.textContent = dt;
+  ovTime.textContent = hm;
+  ovDate.textContent = dt;
+}
+
+function loadWeather() {
+  fetch('/weather.json')
+    .then(function(r) { return r.json(); })
+    .then(function(w) { ovWx.textContent = w.temp_c + '°C · ' + w.city; })
+    .catch(function() { ovWx.textContent = ''; });
+}
+
+// ── dashboard ──────────────────────────────────────────────────────
+function startDashboard() {
+  mode = 'dashboard';
+  ssEl.style.display = 'none';
+  dbEl.classList.add('show');
+  armInactive();
+}
+
+function armInactive() {
+  clearTimeout(inactiveTimer);
+  inactiveTimer = setTimeout(function() {
+    if (mode === 'dashboard') { clearTimers(); startSlideshow(); }
+  }, 60000);
+}
+
+// ── buttons ────────────────────────────────────────────────────────
+function buildGrid(buttons) {
+  var i, cfg, btn, pb;
+  gridEl.innerHTML = '';
+
+  for (i = 0; i < buttons.length; i++) {
+    cfg = buttons[i];
+    btnStates[cfg.id] = false;
+    btn = makeBtn(cfg.id, ICONS[cfg.icon] || ICONS.plug, cfg.label);
+    applyColor(btn, cfg, false);
+    (function(b, c) {
+      b.addEventListener('touchstart', function(e) {
+        e.preventDefault();
+        ripple(b, e.touches[0]);
+        fireBtn(b, c);
+      }, false);
+      b.addEventListener('click', function(e) { ripple(b, e); fireBtn(b, c); });
+    }(btn, cfg));
+    gridEl.appendChild(btn);
+  }
+
+  pb = makeBtn('btn-photos', ICONS.photos, 'Ver Fotos');
+  pb.addEventListener('touchstart', function(e) {
+    e.preventDefault();
+    ripple(pb, e.touches[0]);
+    clearTimers(); startSlideshow();
+  }, false);
+  pb.addEventListener('click', function() { clearTimers(); startSlideshow(); });
+  gridEl.appendChild(pb);
+}
+
+function makeBtn(id, iconSvg, label) {
+  var btn = document.createElement('button');
+  btn.className = 'btn';
+  btn.id = id;
+  btn.innerHTML = iconSvg + '<span class="btn-lbl">' + label + '</span>';
+  return btn;
+}
+
+function applyColor(btn, cfg, on) {
+  btn.style.background = on ? (cfg.color_on || '#2a2a2a') : (cfg.color_off || '#1c1c1e');
+  btn.style.color = on ? '#fff' : '#666';
+  btn.classList.toggle('on', on);
+}
+
+function fireBtn(btn, cfg) {
+  armInactive();
+  if (cfg.is_toggle) {
+    btnStates[cfg.id] = !btnStates[cfg.id];
+    applyColor(btn, cfg, btnStates[cfg.id]);
+    var url = btnStates[cfg.id] ? cfg.webhook_on : cfg.webhook_off;
+    if (url) { post(url); }
+  } else {
+    if (cfg.webhook_on) { post(cfg.webhook_on); }
+  }
+}
+
+function ripple(btn, e) {
+  var r   = btn.getBoundingClientRect();
+  var cx  = e ? e.clientX : r.left + r.width / 2;
+  var cy  = e ? e.clientY : r.top  + r.height / 2;
+  var rip = document.createElement('span');
+  rip.className = 'ripple';
+  rip.style.cssText =
+    'width:' + r.width + 'px;height:' + r.width + 'px;' +
+    'left:'  + (cx - r.left - r.width / 2) + 'px;' +
+    'top:'   + (cy - r.top  - r.width / 2) + 'px';
+  btn.appendChild(rip);
+  rip.addEventListener('animationend', function() {
+    if (rip.parentNode) { rip.parentNode.removeChild(rip); }
+  });
+}
+
+function post(url) {
+  fetch(url, { method: 'POST' })
+    .catch(function(e) { console.warn('webhook failed:', url); });
+}
+
+// ── pointer helpers ────────────────────────────────────────────────
+function onPtrStart(x, y) { ptrStartX = x; ptrStartY = y; }
+
+function onPtrEnd(x, y) {
+  if (mode !== 'slideshow') { return; }
+  var dx = x - ptrStartX;
+  var dy = y - ptrStartY;
+  if (Math.abs(dx) < 40 && Math.abs(dy) < 40) {
+    clearTimers(); startDashboard();
+  } else if (Math.abs(dx) > Math.abs(dy)) {
+    photoIdx = dx < 0
+      ? (photoIdx + 1) % photos.length
+      : (photoIdx - 1 + photos.length) % photos.length;
+    showPhoto(photoIdx);
+    clearInterval(slideTimer);
+    slideTimer = setInterval(function() {
+      photoIdx = (photoIdx + 1) % photos.length;
+      showPhoto(photoIdx);
+    }, 60000);
+  }
+}
+
+// ── init ───────────────────────────────────────────────────────────
+function checkOrientation() {
+  var w = window.innerWidth, h = window.innerHeight;
+  var sw = screen.width, sh = screen.height;
+  console.log('orient w=' + w + ' h=' + h + ' sw=' + sw + ' sh=' + sh);
+  if (h > w || sh > sw) {
+    document.body.classList.add('portrait');
+    console.log('portrait ON');
+  } else {
+    document.body.classList.remove('portrait');
+    console.log('portrait OFF');
+  }
+}
+
+function init() {
+  checkOrientation();
+  window.addEventListener('resize', checkOrientation);
+  var photoDone = false, configDone = false;
+  var loadedPhotos = [], loadedButtons = [];
+
+  function onBothLoaded() {
+    if (!photoDone || !configDone) { return; }
+    photos = loadedPhotos;
+    buildGrid(loadedButtons);
+    updateClock();
+    setInterval(updateClock, 1000);
+    loadWeather();
+    setInterval(loadWeather, 30 * 60 * 1000);
+
+    ssEl.addEventListener('touchstart', function(e) {
+      onPtrStart(e.touches[0].clientX, e.touches[0].clientY);
+    }, true);
+    ssEl.addEventListener('touchend', function(e) {
+      onPtrEnd(e.changedTouches[0].clientX, e.changedTouches[0].clientY);
+    }, true);
+    ssEl.addEventListener('mousedown', function(e) { onPtrStart(e.clientX, e.clientY); });
+    ssEl.addEventListener('mouseup',   function(e) { onPtrEnd(e.clientX, e.clientY); });
+
+    dbEl.addEventListener('touchstart', function() { armInactive(); }, true);
+    dbEl.addEventListener('mousedown',  function() { armInactive(); });
+
+    startSlideshow();
+  }
+
+  fetch('/photos.json')
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      loadedPhotos = shuffle(d.photos || []);
+      console.log('photos count=' + loadedPhotos.length + ' first=' + loadedPhotos[0]);
+    })
+    .catch(function(e) { console.log('photos ERROR=' + e); loadedPhotos = []; })
+    .then(function() { photoDone = true; onBothLoaded(); });
+
+  fetch('/config.json')
+    .then(function(r) { return r.json(); })
+    .then(function(d) { loadedButtons = d.buttons || []; })
+    .catch(function() { loadedButtons = []; })
+    .then(function() { configDone = true; onBothLoaded(); });
+}
+
+init();
+</script>
+</body>
+</html>

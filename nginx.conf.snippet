@@ -1,0 +1,53 @@
+# ─── Frame Dashboard ────────────────────────────────────────────────────
+# Guardar como /etc/nginx/conf.d/dashboard.conf
+# O pegar dentro del bloque http {} de /etc/nginx/nginx.conf
+#
+# Aplicar: sudo nginx -t && sudo nginx -s reload
+# ────────────────────────────────────────────────────────────────────────
+
+server {
+    listen 8080;      # ← cambiar si el puerto ya está ocupado
+    server_name _;
+
+    root  /opt/dashboard;
+    index index.html;
+
+    # CORS — necesario para que el frame haga fetch() a webhooks de HA
+    add_header Access-Control-Allow-Origin  "*" always;
+    add_header Access-Control-Allow-Methods "GET, POST, OPTIONS" always;
+    add_header Access-Control-Allow-Headers "Content-Type" always;
+
+    location / {
+        try_files $uri $uri/ =404;
+    }
+
+    # Fotos desde directorio separado
+    location /slideshow/ {
+        alias /opt/slideshow/;
+        expires 1h;
+        add_header Cache-Control "public, max-age=3600";
+    }
+
+    # JSON sin caché — se regeneran en el cron nocturno
+    location = /photos.json {
+        add_header Cache-Control "no-cache, no-store" always;
+    }
+    location = /config.json {
+        add_header Cache-Control "no-cache, no-store" always;
+    }
+}
+
+
+# ─── Alternativa: subpath en servidor existente (mismo puerto) ───────────
+# Usar si el puerto 8080 ya está tomado. Pegar dentro de un server {} activo:
+#
+# location /frame/ {
+#     alias /opt/dashboard/;
+#     index index.html;
+#     try_files $uri $uri/ /frame/index.html;
+# }
+# location /frame/slideshow/ {
+#     alias /opt/slideshow/;
+#     expires 1h;
+# }
+# ─────────────────────────────────────────────────────────────────────────

@@ -1,0 +1,5 @@
+photos.json
+weather.json
+*.log
+.config
+rclone.log
