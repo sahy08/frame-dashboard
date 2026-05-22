@@ -6,12 +6,12 @@ Slideshow + home automation dashboard for ARZOPA Android photo frame with Fully 
 
 ```
 Ubuntu Server 192.168.0.X
-├── nginx :80            ← serves the dashboard (slideshow.appears.cl)
+├── nginx :80            ← serves the dashboard (slideshow.yourdomain.local)
 ├── /opt/dashboard/      ← HTML, config, scripts
 └── /opt/slideshow/      ← photos synced via Syncthing
 
 ARZOPA Frame 192.168.0.Y
-└── Fully Kiosk Browser  ← loads http://slideshow.appears.cl
+└── Fully Kiosk Browser  ← loads http://slideshow.yourdomain.local
 ```
 
 ## Prerequisites
@@ -82,7 +82,7 @@ Edit `/opt/dashboard/config.json`:
 ## Fully Kiosk (Android frame)
 
 1. Install **Fully Kiosk Browser**
-2. Settings → **Start URL**: `http://slideshow.appears.cl` (or your server IP/port)
+2. Settings → **Start URL**: `http://slideshow.yourdomain.local` (or your server IP/port)
 3. Kiosk Mode: **ON**
 4. Screen On While Plugged In: **ON**
 5. Start on Boot: **ON**
