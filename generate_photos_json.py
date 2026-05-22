@@ -7,13 +7,13 @@ import random
 EXTS = {'.jpg', '.jpeg', '.png', '.webp'}
 
 def main():
-    parser = argparse.ArgumentParser(description='Genera photos.json desde un directorio de imágenes')
-    parser.add_argument('--dir',    default='/opt/slideshow',        help='Directorio de imágenes')
-    parser.add_argument('--output', default='/opt/dashboard/photos.json', help='Archivo JSON de salida')
+    parser = argparse.ArgumentParser(description='Generates photos.json from an image directory')
+    parser.add_argument('--dir',    default='/opt/slideshow',             help='Image directory')
+    parser.add_argument('--output', default='/opt/dashboard/photos.json', help='Output JSON file')
     args = parser.parse_args()
 
     if not os.path.isdir(args.dir):
-        print(f'Error: directorio no existe: {args.dir}')
+        print(f'Error: directory not found: {args.dir}')
         raise SystemExit(1)
 
     files = [
@@ -25,7 +25,7 @@ def main():
     with open(args.output, 'w') as fh:
         json.dump({'photos': files}, fh, indent=2)
 
-    print(f'{len(files)} imágenes → {args.output}')
+    print(f'{len(files)} images → {args.output}')
 
 if __name__ == '__main__':
     main()

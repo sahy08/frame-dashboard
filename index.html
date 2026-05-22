@@ -234,11 +234,9 @@ function startSlideshow() {
 
 function showPhoto(idx) {
   var url = '/slideshow/' + photos[idx];
-  console.log('showPhoto idx=' + idx + ' url=' + url);
   if (loadingImg) { loadingImg.onload = null; loadingImg.onerror = null; }
   loadingImg = new Image();
   loadingImg.onload = function() {
-    console.log('onload fired url=' + url);
     var next = curSlide === 'A' ? sA : sB;
     var prev = curSlide === 'A' ? sB : sA;
     next.style.backgroundImage = "url('" + url + "')";
@@ -248,7 +246,7 @@ function showPhoto(idx) {
     loadingImg = null;
     preload('/slideshow/' + photos[(idx + 1) % photos.length]);
   };
-  loadingImg.onerror = function() { console.log('onerror url=' + url); loadingImg = null; };
+  loadingImg.onerror = function() { loadingImg = null; };
   loadingImg.src = url;
 }
 
@@ -391,15 +389,10 @@ function onPtrEnd(x, y) {
 
 // ── init ───────────────────────────────────────────────────────────
 function checkOrientation() {
-  var w = window.innerWidth, h = window.innerHeight;
-  var sw = screen.width, sh = screen.height;
-  console.log('orient w=' + w + ' h=' + h + ' sw=' + sw + ' sh=' + sh);
-  if (h > w || sh > sw) {
+  if (window.innerHeight > window.innerWidth || screen.height > screen.width) {
     document.body.classList.add('portrait');
-    console.log('portrait ON');
   } else {
     document.body.classList.remove('portrait');
-    console.log('portrait OFF');
   }
 }
 
@@ -437,9 +430,8 @@ function init() {
     .then(function(r) { return r.json(); })
     .then(function(d) {
       loadedPhotos = shuffle(d.photos || []);
-      console.log('photos count=' + loadedPhotos.length + ' first=' + loadedPhotos[0]);
     })
-    .catch(function(e) { console.log('photos ERROR=' + e); loadedPhotos = []; })
+    .catch(function() { loadedPhotos = []; })
     .then(function() { photoDone = true; onBothLoaded(); });
 
   fetch('/config.json')
