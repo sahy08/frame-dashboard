@@ -476,6 +476,22 @@ function init() {
     dbEl.addEventListener('touchstart', function() { armInactive(); }, true);
     dbEl.addEventListener('mousedown',  function() { armInactive(); });
 
+    document.addEventListener('keydown', function(e) {
+      var key = e.key || e.keyCode;
+      if (key !== 'ArrowRight' && key !== 39 && key !== 'ArrowLeft' && key !== 37) { return; }
+      if (mode !== 'slideshow' || !photos.length) { return; }
+      var fwd = (key === 'ArrowRight' || key === 39);
+      photoIdx = fwd
+        ? (photoIdx + 1) % photos.length
+        : (photoIdx - 1 + photos.length) % photos.length;
+      showPhoto(photoIdx);
+      clearInterval(slideTimer);
+      slideTimer = setInterval(function() {
+        photoIdx = (photoIdx + 1) % photos.length;
+        showPhoto(photoIdx);
+      }, 60000);
+    });
+
     startSlideshow();
   }
 
