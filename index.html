@@ -180,6 +180,7 @@ if (!window.fetch) {
         var res = {
           ok: xhr.status >= 200 && xhr.status < 300,
           status: xhr.status,
+          headers: { get: function(h) { return xhr.getResponseHeader(h); } },
           json: function() { return Promise.resolve(JSON.parse(xhr.responseText)); }
         };
         resolve(res);
@@ -229,6 +230,7 @@ var ICONS = {
 };
 
 // ── state ──────────────────────────────────────────────────────────
+var clockDelta = 0;
 var photos = [], photoIdx = 0, curSlide = 'A';
 var mode = 'slideshow';
 var slideTimer = null, inactiveTimer = null;
@@ -306,9 +308,9 @@ var MONTHS = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto',
               'septiembre','octubre','noviembre','diciembre'];
 
 function updateClock() {
-  var d  = new Date();
-  var hm = pad2(d.getHours()) + ':' + pad2(d.getMinutes());
-  var dt = DAYS[d.getDay()] + ', ' + d.getDate() + ' de ' + MONTHS[d.getMonth()];
+  var d  = new Date(Date.now() + clockDelta);
+  var hm = pad2(d.getUTCHours()) + ':' + pad2(d.getUTCMinutes());
+  var dt = DAYS[d.getUTCDay()] + ', ' + d.getUTCDate() + ' de ' + MONTHS[d.getUTCMonth()];
   timeEl.textContent = hm;
   dateEl.textContent = dt;
   ovTime.textContent = hm;
@@ -486,8 +488,21 @@ function init() {
     .then(function() { photoDone = true; onBothLoaded(); });
 
   fetch('/config.json')
-    .then(function(r) { return r.json(); })
-    .then(function(d) { loadedButtons = d.buttons || []; })
+    .then(function(r) {
+      var serverDate = r.headers && r.headers.get('Date');
+      if (serverDate) {
+        var serverMs = new Date(serverDate).getTime();
+        if (!isNaN(serverMs)) {
+          var cfg = null;
+          return r.json().then(function(d) {
+            var offset = typeof d.utc_offset === 'number' ? d.utc_offset : 0;
+            clockDelta = (serverMs + offset * 3600000) - Date.now();
+            loadedButtons = d.buttons || [];
+          });
+        }
+      }
+      return r.json().then(function(d) { loadedButtons = d.buttons || []; });
+    })
     .catch(function() { loadedButtons = []; })
     .then(function() { configDone = true; onBothLoaded(); });
 }
